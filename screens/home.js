@@ -1,125 +1,101 @@
-import *as React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import axios from 'axios';
-import RFValue from 'react-native-responsive-fontsize';
-import { Header, Icon } from 'react-native-elements';
-import WebView from 'react-native-webview'
+import React, { Component } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator, SafeAreaView, ScrollView } from "react-native";
+import { Header, Icon, ListItem } from "react-native-elements";
+import axios from "axios";
+import AnimatedLoader from "react-native-animated-loader";
+import moment from 'moment';
 
-export default class Home extends React.Component {
-    constructor() {
-        super();
+export default class HomeScreen extends Component {
+    constructor(props) {
+        super(props);
         this.state = {
-            articleDetails: {}
+            articleDetails: {},
+            visible: true,
+            isFetching: false
         }
     }
 
     componentDidMount() {
-        this.getArticle();
-    }
-    timeConvert(num) {
-        var hours = Math.floor(num / 60)
-        var minutes = num % 60
-        return `${hours} Hours ${minutes} Minutes`
+        this.getArticle()
+        setTimeout(() => {
+            this.setState({
+              visible: !this.state.visible
+            });
+        }, 50000);
     }
 
     getArticle = () => {
-        const url = 'http://127.0.0.1:5000/get-article'
-        axios.get(url).then((response) => {
-            var details = response.data.data
-            details['duration'] = this.timeConvert(details.duration)
-            this.setState = { articleDetails: details }
-        }).catch((error) => {
-            console.log(error.message)
-        })
+    const url = " http://e3f2d74718ca.ngrok.io";
+
+    axios
+    .get(url)
+
+    .then(response => {
+        let details = response.data.data;
+        this.setState({
+            articleDetails: details,
+            isFetching: false
+        });
+    })
     }
-    likedArticle = () => {
-        const url = 'http://127.0.0.1:5000/liked-article'
-        axios.get(url).then((response) => {
-            this.getArticle();
-        }).catch((error) => {
-            console.log(error.message)
-        })
+
+    onRefresh = () => {
+        this.setState({isFetching: true,},() => {this.getArticle();});
     }
-    unlikedArticle = () => {
-        const url = 'http://127.0.0.1:5000/liked-article'
-        axios.get(url).then((response) => {
-            this.getArticle();
-        }).catch((error) => {
-            console.log(error.message)
-        })
-    }
+
+    renderItem = ({item, index}) => (
+        <ListItem
+        key = {index}
+        bottomDivider
+        title = {`Article Name : ${item.title.toUpperCase()}`}
+        titleStyle = {{color: '#F24C00', fontSize : 18, fontWeight: "bold"}}
+        subtitle = {`Date Published : ${moment.unix(item.timestamp).format("DD/MM/YYYY")}`}
+        subtitleStyle = {{color: '#FC7A1E', fontSize: 16}}
+        chevron = {{color: '#F9C784', size: 25}}
+        onPress = {() => {
+            this.props.navigation.navigate("ViewArticle", {
+                article_name: item.title.toUpperCase(),
+                url: item.url,
+                id: item.id
+            })
+        }}
+        containerStyle = {{backgroundColor: '#E7E7E7'}}
+        >
+        </ListItem>
+    )
+
+    keyExtractor = (item, index) => index.toString();
 
     render() {
-        const { articleDetails } = this.state
 
-        if (articleDetails.url) {
-            const url = articleDetails
-        }
-        return (
-            <View styles={styles.container}>
-                <View styles={styles.headerContainer}>
-                    <Header
-                        centerComponent={{
-                            text: "Recommended",
-                            style: styles.headerTitle
-                        }}
-                        rightComponent={{ icon: 'search', color: '#fff' }}
-                        backgroundColor={"#d500f9"}
-                        containerStyle={{ flex: 1 }}
-                    />
-                </View>
-                <View style={styles.upperContainer}>
-                    <WebView source={{ uri: url }} />
-                </View>
-                <View style={styles.lowerContainer}>
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity onPress={this.likedArticle}>
-                            <Icon
-                                reverse
-                                name={"check"}
-                                type={"entypo"}
-                                size={RFValue(30)}
-                                color={"#76ff03"}
-                            />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={this.unlikedArticle}>
-                            <Icon
-                                reverse
-                                name={"cross"}
-                                type={"entypo"}
-                                size={RFValue(30)}
-                                color={"#ff1744"}
-                            />
-                        </TouchableOpacity>
-                    </View>
-                </View>
+        const { articleDetails, visible } = this.state;
+
+        return(
+            <View style = {{backgroundColor: '#E7E7E7'}}>
+            <AnimatedLoader
+            visible={visible}
+            overlayColor="rgba(255,255,255,0.75)"
+            source={require("../loader.json")}
+            animationStyle={styles.lottie}
+            speed={1}
+            >
+                <Text>Fetching article metadata...</Text>
+            </AnimatedLoader>
+            <FlatList
+                keyExtractor = {this.keyExtractor}
+                data = {articleDetails}
+                renderItem = {this.renderItem}
+                maxToRenderPerBatch = {10}
+                onRefresh={() => this.onRefresh()}
+                refreshing={this.state.isFetching}/>
             </View>
         )
     }
-
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1
-    },
-    headerContainer: {
-        flex: 0.1
-    },
-    headerTitle: {
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: RFValue(18)
-    },
-    upperContainer: {
-        flex: 0.75
-    },
-    lowerContainer: {
-        flex: 0.15
-    },
-    buttonContainer: {
-        flexDirection: "row",
-        justifyContent: "space-evenly",
-        alignItems: "center"
+    lottie: {
+      width: 100,
+      height: 100
     }
 });
